@@ -63,11 +63,3 @@ public class Reservation {
         this.status = status;
     }
 }
-
-// Enum for reservation status
-enum ReservationStatus {
-    PENDING,
-    CONFIRMED,
-    CANCELLED,
-    COMPLETED
-}

@@ -1,7 +1,7 @@
 package com.movie.reservation.movie_service.model;
-
+ 
 import org.hibernate.validator.constraints.URL;
-
+ 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,7 +16,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
+ 
 @AllArgsConstructor
 @Getter
 @Setter
@@ -35,15 +35,15 @@ public class Movie {
     @Size(max=20)
     @Column()
     private String description;
-
+ 
     @URL
     @Column()
     private String posterUrl;
-    
+     
     @Enumerated(EnumType.STRING)
     @Column
     private Genre genre;
-
+ 
     public Movie(String title, String description, String posterUrl, Genre genre){
         this.title = title;
         this.description = description;

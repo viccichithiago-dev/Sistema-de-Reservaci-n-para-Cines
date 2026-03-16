@@ -1,0 +1,1 @@
+I am using Java 21, Spring Boot 3, and Lombok. Focus on using Records for DTOs and follow the 'Service-Repository' pattern. For database consistency, use @Transactional in the service layer.

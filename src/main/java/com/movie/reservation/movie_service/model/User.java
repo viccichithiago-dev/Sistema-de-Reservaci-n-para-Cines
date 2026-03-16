@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
 @AllArgsConstructor
 @Getter
 @Setter
@@ -26,16 +27,16 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
     @Email(message = "Error en la direccion de correo")
-    @Column(nullable = false, unique = true,length=100)
+    @Column(nullable = false, unique = true, length=100)
     private String email;
-    @Column(nullable=false,length=100)
+    @Column(nullable=false, length=100)
     private String password;
     private Role role;
 
-    public User(String username,String email,String password){
-        this.username=username;
-        this.email=email;
-        this.password=password;
+    public User(String username, String email, String password){
+        this.username = username;
+        this.email = email;
+        this.password = password;
         this.role = Role.USER;
     }
 }
