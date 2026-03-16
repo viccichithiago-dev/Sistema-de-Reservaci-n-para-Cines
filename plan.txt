@@ -1,0 +1,239 @@
+Plan de Implementación: Sistema de Reserva de Películas
+1. Tecnologías y Estructura del Proyecto
+- Lenguaje: Java 21
+- Framework: Spring Boot 3.5.11
+- Base de datos: PostgreSQL
+- Dependencias clave:
+  - Spring Data JPA (para persistencia)
+  - Spring Security (para autenticación y autorización)
+  - Spring Web (para REST APIs)
+  - Lombok (para reducir código boilerplate)
+  - PostgreSQL Driver
+  - Spring Boot DevTools (para desarrollo)
+  - Spring Boot Docker Compose (para orquestación)
+2. Modelo de Datos y Relaciones
+Entidades Principales:
+1. User - Usuario del sistema
+   - id, email, password, name, role (ENUM: ADMIN, USER)
+   - Relación: Uno-a-muchos con Reservation
+2. Role - Rol del usuario (ENUM)
+   - ADMIN, USER
+3. Genre - Género de película (ENUM)
+   - ACTION, COMEDY, DRAMA, HORROR, SCI-FI, ROMANCE, etc.
+4. Movie - Película
+   - id, title, description, posterUrl, genre
+   - Relación: Uno-a-muchos con Showtime
+5. Theater - Sala de cine
+   - id, name, location
+   - Relaciones: Uno-a-muchos con Seat, Uno-a-muchos con Showtime
+6. Seat - Asiento en la sala
+   - id, seatNumber, row, theaterId
+   - Relación: Uno-a-muchos con ShowtimeSeat
+7. Showtime - Función de película
+   - id, movieId, theaterId, startTime, endTime
+   - Relaciones: Muchos-a-uno con Movie, Muchos-a-uno con Theater, Uno-a-muchos con ShowtimeSeat
+8. ShowtimeSeat - Estado del asiento para una función específica
+   - id, showtimeId, seatId, isBooked (boolean)
+   - Restricción: Índice único compuesto (showtimeId, seatId) para prevenir overbooking
+   - Relaciones: Muchos-a-uno con Showtime, Muchos-a-uno con Seat
+9. Reservation - Reserva de usuario
+   - id, userId, reservationDate, totalAmount, status
+   - Relación: Uno-a-muchos con ShowtimeSeat (a través de una tabla intermedia o campo en Reservation)
+   - Nota alternativa: Podría haber una tabla ReservationShowtimeSeat para la relación muchos-a-muchos
+3. Capa de Repositorios (Spring Data JPA)
+Interfaces que extenderán JpaRepository<T, ID>:
+- UserRepository
+- MovieRepository
+- TheaterRepository
+- SeatRepository
+- ShowtimeRepository
+- ShowtimeSeatRepository
+- ReservationRepository
+Métodos de consulta personalizados:
+- MovieRepository: findByGenre(Genre genre), findByTitleContainingIgnoreCase(String title)
+- ShowtimeRepository: findByMovieIdAndStartTimeAfter(Long movieId, LocalDateTime startTime), findByStartTimeBetween(LocalDateTime from, LocalDateTime to)
+- ShowtimeSeatRepository: findByShowtimeIdAndIsBookedFalse(Long showtimeId) (asientos disponibles)
+- ReservationRepository: findByUserId(Long userId), findByReservationDateBetween(LocalDateTime from, LocalDateTime to)
+4. Capa de Servicios (Lógica de Negocio)
+Interfaces e Implementaciones:
+- UserService:
+  - registerUser(UserRegistrationRequest request)
+  - authenticateUser(LoginRequest request) → devuelve JWT
+  - getUserById(Long id)
+  - updateUserRole(Long userId, Role role) (solo admin)
+- MovieService:
+  - createMovie(MovieRequest request)
+  - getMovieById(Long id)
+  - getAllMovies(Optional<Genre> genre, Optional<String> searchTerm)
+  - updateMovie(Long id, MovieRequest request)
+  - deleteMovie(Long id)
+- TheaterService:
+  - CRUD operations para theaters
+  - getTheaterSeats(Long theaterId)
+- SeatService:
+  - getSeatById(Long id)
+  - getSeatsByTheater(Long theaterId)
+- ShowtimeService:
+  - createShowtime(ShowtimeRequest request)
+  - getShowtimeById(Long id)
+  - getAvailableShowtimes(LocalDate date, Optional<Long> genreId) (para búsqueda por fecha)
+  - updateShowtime(Long id, ShowtimeRequest request)
+  - deleteShowtime(Long id)
+- ReservationService (con @Transactional):
+  - createReservation(Long userId, ReservationRequest request) 
+    - Valida disponibilidad de asientos
+    - Marca asientos como reservados (en ShowtimeSeat)
+    - Crea registro de reserva
+  - getUserReservations(Long userId)
+  - getReservationById(Long id)
+  - cancelReservation(Long reservationId) (solo si es futura)
+- AdminService:
+  - getAllReservations()
+  - getReservationStatistics() (capacidad, ingresos por período)
+  - getMoviesByPopularity()
+- AuthService:
+  - generateToken(UserDetails userDetails)
+  - validateToken(String token)
+  - extractUsername(String token)
+  - extractExpiration(String token)
+5. Capa de Controladores (REST APIs)
+Endpoints por dominio:
+Autenticación:
+- POST /api/auth/register - Registro de usuario
+- POST /api/auth/login - Inicio de sesión (devuelve JWT)
+Gestión de Películas (Admin):
+- GET /api/movies - Listar películas (con filtros opcionales)
+- GET /api/movies/{id} - Obtener película por ID
+- POST /api/movies - Crear película
+- PUT /api/movies/{id} - Actualizar película
+- DELETE /api/movies/{id} - Eliminar película
+Gestión de Salas y Asientos (Admin):
+- GET /api/theaters - Listar salas
+- GET /api/theaters/{id} - Obtener sala por ID
+- POST /api/theaters - Crear sala
+- GET /api/theaters/{id}/seats - Obtener asientos de una sala
+Gestión de Funciones:
+- GET /api/showtimes - Listar funciones (con filtros de fecha/género)
+- GET /api/showtimes/{id} - Obtener función por ID
+- POST /api/showtimes - Crear función (Admin)
+- PUT /api/showtimes/{id} - Actualizar función (Admin)
+- DELETE /api/showtimes/{id} - Eliminar función (Admin)
+- GET /api/showtimes/{showtimeId}/available-seats - Obtener asientos disponibles para una función
+Reservas:
+- POST /api/reservations - Crear reserva
+- GET /api/reservations/user/{userId} - Obtener reservas de un usuario
+- GET /api/reservations/{id} - Obtener reserva por ID
+- DELETE /api/reservations/{id} - Cancelar reserva
+Administración:
+- GET /api/admin/reservations - Obtener todas las reservas (Admin)
+- GET /api/admin/statistics - Obtener estadísticas (Admin)
+6. DTOs (Objetos de Transferencia de Datos)
+Para evitar exponer entidades directamente:
+- UserDto: id, email, name, role
+- UserRegistrationRequest: email, password, name
+- LoginRequest: email, password
+- AuthResponse: token, expiresIn, userInfo
+- MovieRequest/Response: id, title, description, posterUrl, genre
+- TheaterRequest/Response: id, name, location
+- SeatRequest/Response: id, seatNumber, row
+- ShowtimeRequest/Response: id, movieId, theaterId, startTime, endTime
+- ShowtimeDetailResponse: Extiende ShowtimeResponse con movieDetails, theaterDetails, availableSeats
+- ReservationRequest: showtimeId, List<Long> seatIds
+- ReservationResponse: id, userId, showtimeDetails, List<SeatDetails>, reservationDate, totalAmount, status
+- AdminStatisticsResponse: totalReservations, totalRevenue, occupancyRate, popularMovies
+7. Manejo de Excepciones
+Clases de excepción personalizadas:
+- ResourceNotFoundException (HTTP 404)
+- BadRequestException (HTTP 400)
+- UnauthorizedException (HTTP 401)
+- ForbiddenException (HTTP 403)
+- ConflictException (HTTP 409) - para doble reserva de asientos
+Controlador global de excepciones (@ControllerAdvice) que mapea estas excepciones a respuestas JSON apropiadas con códigos de estado HTTP y mensajes.
+8. Configuración de Seguridad (Spring Security)
+Componentes:
+- JwtTokenUtil: Clase utilitaria para generar, validar y extraer información de tokens JWT
+- UserDetailsServiceImpl: Implementación que carga usuarios desde la base de datos
+- JwtAuthenticationFilter: Filtro que intercepta requests, valida JWT y establece autenticación en SecurityContext
+- SecurityConfig: Configuración de HttpSecurity para:
+  - Deshabilitar CSUF (para API)
+  - Configurar gestión de sesiones stateless
+  - Definir reglas de autorización por endpoint:
+    - /api/auth/** - permitAll()
+    - /api/users/register - permitAll()
+    - /api/admin/** - hasRole("ADMIN")
+    - Otros endpoints autenticados - authenticated()
+  - Configurar excepciones personalizadas
+  - Añadir JwtAuthenticationFilter antes de UsernamePasswordAuthenticationFilter
+Flujo de Autenticación:
+1. Usuario envía credenciales a /api/auth/login
+2. AuthService valida credenciales y genera JWT firmado con clave secreta
+3. Cliente almacena token (localStorage, cookie, etc.)
+4. Para requests posteriores, cliente envía token en header Authorization: Bearer <token>
+5. JwtAuthenticationFilter extrae token, lo valida y establece Authentication en SecurityContext
+6. Acceso a endpoints basado en roles verificados con @PreAuthorize o configuración HttpSecurity
+9. Carga Inicial de Datos
+Implementar CommandLineRunner o ApplicationRunner para:
+- Crear usuario administrador inicial (email: admin@movieservice.com, password: hashed)
+- Insertar géneros predefinidos en la tabla Genre
+- Crear algunas salas de ejemplo con sus asientos
+- Añadir algunas películas de ejemplo
+- Programar algunas funciones de ejemplo
+10. Estrategia de Pruebas
+Pruebas Unitarias:
+- Servicios con @MockBean para dependencias
+- Utilizar JUnit 5 y Mockito
+- Probar lógica de negocio (validaciones, cálculos, flujos)
+Pruebas de Integración:
+- Repositorios con @DataJpaTest para probar consultas a base de datos
+- Configurar base de datos en memoria (H2) para tests o usar @Testcontainers con PostgreSQL
+Pruebas de API/Web:
+- Controladores con @WebMvcTest para probar endpoints JSON
+- Utilizar MockMvc para simular requests
+- Probar validaciones, códigos de estado, respuestas JSON
+Pruebas de End-to-End:
+- Escenarios completos de registro, login, búsqueda de películas, reserva de asientos
+11. Hoja de Ruta de Implementación (4 Fases)
+Fase 1: Infraestructura y Modelo de Datos (Estimado: 2-3 días)
+- ✅ Analizar estructura existente (YA COMPLETADO)
+- Diseñar y crear entidades JPA con relaciones
+- Crear repositorios Spring Data JPA con métodos de consulta
+- Configurar application.properties para conexión a PostgreSQL
+- Implementar carga inicial de datos (CommandLineRunner)
+- Crear enums para Role y Genre
+Fase 2: Servicios y Seguridad (Estimado: 3-4 días)
+- Implementar service interfaces y clases
+- Desarrollar lógica de transacciones (especialmente para reservas)
+- Configurar Spring Security con JWT
+- Implementar UserDetailsService, JwtUtil, y filtros
+- Crear clases de excepción personalizadas
+- Configurar GlobalExceptionHandler
+Fase 3: Controladores y DTOs (Estimado: 3-4 días)
+- Diseñar DTOs para request y response
+- Implementar controladores REST para todos los dominios
+- Definir endpoints con métodos HTTP apropiados
+- Añadir validaciones (javax.validation o Hibernate Validator)
+- Implementar control de acceso con @PreAuthorize donde corresponda
+- Probar endpoints con herramientas como Postman o curl
+Fase 4: Testing, Documentación y Refinamiento (Estimado: 2-3 días)
+- Escribir pruebas unitarias para servicios
+- Crear pruebas de integración para repositorios
+- Desarrollar pruebas de API para controladores
+- Revisar manejo de errores y casos edge
+- Optimizar consultas y agregar índices si es necesario
+- Documentar API (opcional: usar Springdoc OpenAPI/Swagger)
+Consideraciones Especiales para Reserva de Asientos
+Para prevenir overbooking en entorno concurrentemente:
+1. Transacciones: El servicio de reservas debe ser @Transactional
+2. Bloqueo pesimético: Al verificar disponibilidad de asientos, usar LockModeType.PESSIMISTIC_WRITE en la consulta de ShowtimeSeat
+3. Validación doble: Verificar disponibilidad tanto antes como después de actualizar los asientos
+4. Índice único: El índice compuesto único (showtimeId, seatId) en ShowtimeSeat previene inserciones duplicadas a nivel de base de datos
+5. Manejo de excepciones: Capturar DataIntegrityViolationException y convertirla en ConflictException con mensaje apropiado
+Escalabilidad y Mejoras Futuras
+- Implementar caché (Redis) para datos frecuentemente consultados (películas, funciones)
+- Usar colas de mensajes (RabbitMQ/Kafka) para notificaciones de correo electrónico después de reservas exitosas
+- Agregar paginación a endpoints que devuelven listas
+- Implementar rate limiting para prevenir abuso de API
+- Añadir logging estructurado y monitoreo
+- Considerar uso de eventos de dominio para desacoplar ciertas operaciones (ej: después de crear reserva, enviar email)
+- Agregar soporte para diferentes tipos de asientos (standard, VIP, accesible) y precios variables
+Este plan proporciona una hoja de ruta completa para desarrollar un sistema robusto de reserva de películas con todas las funcionalidades solicitadas, siguiendo las mejores prácticas de Spring Boot y diseño de software.
