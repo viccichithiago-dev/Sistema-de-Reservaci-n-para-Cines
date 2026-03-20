@@ -1,32 +1,36 @@
 package com.movie.reservation.movie_service.repository;
-import com.movie.reservation.movie_service.model.Movie;
-import com.movie.reservation.movie_service.model.Genre;
-import org.springframework.data.domain  .Page;
+
+import java.util.List;
+
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-import java.util.Optional;
-import java.util.List;
+
+import com.movie.reservation.movie_service.model.Genre;
+import com.movie.reservation.movie_service.model.Movie;
+
 @Repository
 public interface MovieRepository extends JpaRepository<Movie, Long>{
-    // Metodos de busqueda esenciales para catalogo de peliculas
-    // Busquedas de texto
+    // Essential search methods for movie catalog
+    // Text searches
     List<Movie> findByTitleContainingIgnoreCase(String title);
     Page<Movie> findAllByTitleContainingIgnoreCase(String title, Pageable pageable);
     
-    // Busquedas por genero
+    // Genre searches
     List<Movie> findByGenre(Genre genre);
     List<Movie> findByGenreOrderByTitleAsc(Genre genre);
     Page<Movie> findAllByGenre(Genre genre, Pageable pageable);
     
-    // Busquedas combinadas
+    // Combined searches
     List<Movie> findByTitleContainingIgnoreCaseAndGenre(String title, Genre genre);
-
-    // Validaciones criticas
+    Page<Movie> findAllByTitleContainingIgnoreCaseAndGenre(String title, Genre genre, Pageable pageable);
+    
+    // Critical validations
     boolean existsByTitle(String title);
     boolean existsByTitleAndGenre(String title, Genre genre);
     boolean existsById(Long id);
     
-    //Utilidades 
+    // Utilities 
     void deleteById(Long id);
 }
