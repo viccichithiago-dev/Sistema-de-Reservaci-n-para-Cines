@@ -1,15 +1,17 @@
 package com.movie.reservation.movie_service.service;
-import com.movie.reservation.movie_service.dto.LoginRequest;
-import com.movie.reservation.movie_service.dto.UserRegistrationRequest;
-import com.movie.reservation.movie_service.dto.UserDTO;
-import com.movie.reservation.movie_service.model.Role;
-import com.movie.reservation.movie_service.model.User;
-import com.movie.reservation.movie_service.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.movie.reservation.movie_service.dto.LoginRequest;
+import com.movie.reservation.movie_service.dto.UserDTO;
+import com.movie.reservation.movie_service.dto.UserRegistrationRequest;
+import com.movie.reservation.movie_service.model.Role;
+import com.movie.reservation.movie_service.model.User;
+import com.movie.reservation.movie_service.repository.UserRepository;
+import com.movie.reservation.movie_service.security.JwtUtil;
+
+import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -39,9 +41,9 @@ public class UserServiceImpl implements UserService {
 
         // Una vez validado creamos y guardamos el usuario
         User user = new User(
+            request.name(),
             request.email(),
-            passwordEncoder.encode(request.password()),
-            request.name()
+            passwordEncoder.encode(request.password())
         );
         User savedUser = userRepository.save(user);
         return toResponse(savedUser);
