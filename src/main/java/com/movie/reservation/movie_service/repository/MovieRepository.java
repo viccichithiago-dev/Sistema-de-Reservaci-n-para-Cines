@@ -1,12 +1,16 @@
 package com.movie.reservation.movie_service.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.movie.reservation.movie_service.dto.MoviePopularityResponse;
 import com.movie.reservation.movie_service.model.Genre;
 import com.movie.reservation.movie_service.model.Movie;
 
@@ -33,4 +37,20 @@ public interface MovieRepository extends JpaRepository<Movie, Long>{
     
     // Utilities 
     void deleteById(Long id);
+
+    // Metodos nuevos para consultas JQPL para obtener peliculas por popularidad
+    @Query("""
+    SELECT m.id, m.title, m.genre, COUNT(r.id), SUM(r.totalAmount), COUNT(ss.id)
+    FROM Movie m
+    JOIN Showtime sh ON sh.movie = m
+    JOIN ShowtimeSeat ss ON ss.showtime = sh
+    JOIN Reservation r ON ss.reservation = r
+    WHERE r.status = 'CONFIRMED'
+    AND (:startDate IS NULL OR r.reservationDate >= :startDate)
+    AND (:endDate IS NULL OR r.reservationDate <= :endDate)
+    GROUP BY m.id, m.title, m.genre
+    ORDER BY COUNT(r.id) DESC
+    """)
+    List<MoviePopularityResponse> findMoviesByPopularity(@Param("startDate") LocalDateTime startDate,@Param("endDate")LocalDateTime endDate);
+
 }
