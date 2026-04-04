@@ -6,7 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.movie.reservation.movie_service.exception.ResourceNotFoundException;
+import com.movie.reservation.movie_service.exception.DuplicateResourceException;
 import com.movie.reservation.movie_service.dto.MovieRequest;
 import com.movie.reservation.movie_service.dto.MovieResponse;
 import com.movie.reservation.movie_service.model.Genre;
@@ -43,7 +44,7 @@ public class MovieServiceImpl implements MovieService {
     public MovieResponse getMovieById(Long id){
         // Validacion
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pelicula no encontrada con el ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Pelicula no encontrada con el ID: " + id));
         return mapToResponse(movie);            
     }
     
@@ -74,7 +75,7 @@ public class MovieServiceImpl implements MovieService {
     @Transactional
     public MovieResponse updateMovie(Long id, MovieRequest request){
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Movie not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Pelicula no encontrada con el ID: " + id));
         // Actualizar
         movie.setTitle(request.title());
         movie.setDescription(request.description());
@@ -88,7 +89,7 @@ public class MovieServiceImpl implements MovieService {
     @Transactional
     public void deleteMovie(Long id){
         if(!movieRepository.existsById(id)){
-            throw new RuntimeException("La pelicula no se encontro, su ID es: "+ id);
+            throw new ResourceNotFoundException("La pelicula no se encontro, su ID es: "+ id);
         }
         movieRepository.deleteById(id);
     }   
@@ -105,7 +106,7 @@ public class MovieServiceImpl implements MovieService {
     }
 
     if (exists) {
-        throw new RuntimeException("Ya existe una pelicula con este genero y titulo");
+        throw new DuplicateResourceException("Ya existe una pelicula con este genero y titulo");
     }
 }
     
