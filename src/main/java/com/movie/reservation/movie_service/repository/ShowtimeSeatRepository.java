@@ -1,11 +1,19 @@
 package com.movie.reservation.movie_service.repository;
-import com.movie.reservation.movie_service.model.*;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import java.util.List;
-import java.util.Optional;
+
+import com.movie.reservation.movie_service.model.Reservation;
+import com.movie.reservation.movie_service.model.Seat;
+import com.movie.reservation.movie_service.model.Showtime;
+import com.movie.reservation.movie_service.model.ShowtimeSeat;
 // findByShowtimeIdAndIsBookedFalse(Long showtimeId) (asientos disponibles)
 @Repository
 public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, Long>{
@@ -24,4 +32,20 @@ public interface ShowtimeSeatRepository extends JpaRepository<ShowtimeSeat, Long
     List<ShowtimeSeat> findByReservation(Reservation reservation);
     Page<ShowtimeSeat> findByReservation(Reservation reservation, Pageable pageable);
     boolean existsByReservation(Reservation reservation);
+    List<ShowtimeSeat> findByShowtimeIdAndSeatIdIn(Long showtimeId,List<Long> seatsIds);
+    List<ShowtimeSeat> findByReservationId(Long reservationId);
+
+    // Metodos de capacidad con consultas JQPL
+    // Total de asientos reservados
+    @Query("SELECT COUNT(ss) FROM ShowtimeSeat ss WHERE ss.isBooked = true")
+    long countBookedSeats();
+    // Total de asientos en el sistema
+    @Query("SELECT COUNT(ss) FROM ShowtimeSeat ss")
+    long countTotalSeats();
+    // Asientos reservados por rango de fechas
+    @Query("SELECT COUNT(ss) FROM ShowtimeSeat ss WHERE ss.isBooked = true AND ss.reservation.reservationDate BETWEEN :startDate AND :endDate")
+    long countBookedSeatsByDateRange(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate
+    );
 }

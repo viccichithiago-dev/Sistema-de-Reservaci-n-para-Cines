@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface SeatRepository extends JpaRepository<Seat, Long>{
     // Busquedas esenciales por teatro
     List<Seat> findByTheater(Theater theater);
+    List<Seat> findByTheaterId(Long tehaterId);
     Page<Seat> findByTheater(Theater theater, Pageable pageable);
     Optional<Seat> findByTheaterAndRowAndSeatNumber(Theater theater,int row,int seatNumber);
 

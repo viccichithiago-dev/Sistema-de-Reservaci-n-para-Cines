@@ -1,15 +1,18 @@
 package com.movie.reservation.movie_service.repository;
 
-import com.movie.reservation.movie_service.model.Reservation;
-import com.movie.reservation.movie_service.model.User;
-import com.movie.reservation.movie_service.model.ReservationStatus;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+
+import com.movie.reservation.movie_service.model.Reservation;
+import com.movie.reservation.movie_service.model.ReservationStatus;
 
 @Repository
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
@@ -46,4 +49,26 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
     // Existence checks
     boolean existsByUserId(Long userId);
     boolean existsById(Long id);
+    // Metodos de consultas JQPL
+    // Conteo total de reservaciones confirmadas
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.status = 'CONFIRMED'")
+    long countConfirmedReservations();
+    
+    // Ingresos totales
+    @Query("SELECT COALESCE(SUM(r.totalAmount), 0) FROM Reservation r WHERE r.status = 'CONFIRMED'")
+    BigDecimal sumTotalRevenue();
+
+    //Conteo por rango de fechas
+    @Query("SELECT COUNT(r) FROM Reservation r WHERE r.reservationDate BETWEEN :startDate AND :endDate")
+    long countByReservationDateBetween(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate
+    );
+
+    // Ingresos por rango de fechas
+    @Query("SELECT COALESCE(SUM(r.totalAmount), 0) FROM Reservation r WHERE r.status = 'CONFIRMED' AND r.reservationDate BETWEEN :startDate AND :endDate")
+    BigDecimal sumRevenueByDateRange(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate
+    );
 }
