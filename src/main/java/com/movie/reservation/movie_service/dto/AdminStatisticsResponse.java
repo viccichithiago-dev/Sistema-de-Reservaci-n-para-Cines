@@ -7,5 +7,5 @@ public record AdminStatisticsResponse(
     long totalReservations,
     BigDecimal totalRevenue,
     double occupancyRate,
-    List<MovieResponse> popularMovies
+    List<MoviePopularityResponse> popularMovies
 ) {}
