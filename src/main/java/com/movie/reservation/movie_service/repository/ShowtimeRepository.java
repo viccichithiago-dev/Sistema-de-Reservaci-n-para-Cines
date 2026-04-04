@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
-
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 @Repository
 public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
     // Busquedas esenciales por movie y theater
@@ -37,7 +38,20 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
     boolean existsById(Long id);
 
     // Metodos adicionales necesarios para ShowtimeService
-    List<Showtime> findOverlappingShowtimes(Theater theater, LocalDateTime startTime, LocalDateTime endTime, Long excludeId);
-    List<Showtime> findByStartTimeBetweenAndMovieGenreId(LocalDateTime start, LocalDateTime end, Long genreId, Sort sort);
+    @Query("SELECT s FROM Showtime s WHERE s.theater = :theater " +
+           "AND ((s.startTime < :endTime AND s.endTime > :startTime)) " +
+           "AND (:id IS NULL OR s.id <> :id)")
+    List<Showtime> findOverlappingShowtimes(
+        @Param("theater") Theater theater, 
+        @Param("startTime") LocalDateTime startTime, 
+        @Param("endTime") LocalDateTime endTime, 
+        @Param("id") Long excludeId
+    );
+    List<Showtime> findByStartTimeBetweenAndMovieGenre(
+        LocalDateTime start, 
+        LocalDateTime end, 
+        Genre genre, 
+        Sort sort
+    );
     List<Showtime> findByStartTimeBetween(LocalDateTime start, LocalDateTime end, Sort sort);
 }
