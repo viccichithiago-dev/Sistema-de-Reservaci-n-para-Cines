@@ -4,14 +4,17 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.movie.reservation.movie_service.exception.ResourceNotFoundException;
-import com.movie.reservation.movie_service.exception.DuplicateResourceException;
+
 import com.movie.reservation.movie_service.dto.MovieRequest;
 import com.movie.reservation.movie_service.dto.MovieResponse;
+import com.movie.reservation.movie_service.exception.DuplicateResourceException;
+import com.movie.reservation.movie_service.exception.ResourceNotFoundException;
 import com.movie.reservation.movie_service.model.Genre;
 import com.movie.reservation.movie_service.model.Movie;
+import com.movie.reservation.movie_service.model.spec.MovieSpecification;
 import com.movie.reservation.movie_service.repository.MovieRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -51,23 +54,14 @@ public class MovieServiceImpl implements MovieService {
     // Metodo para obtener todas las peliculas con paginacion y filtros
     @Override
     public Page<MovieResponse> getAllMovies(Pageable pageable, Optional<Genre> genre, Optional<String> searchTerm) {
-        if (genre.isPresent() && searchTerm.isPresent()) {
-           
-            return movieRepository.findAllByTitleContainingIgnoreCaseAndGenre(searchTerm.get(), genre.get(), pageable)
-                    .map(this::mapToResponse);
-        } else if (genre.isPresent()) {
-            
-            return movieRepository.findAllByGenre(genre.get(), pageable)
-                    .map(this::mapToResponse);
-        } else if (searchTerm.isPresent()) {
-            
-            return movieRepository.findAllByTitleContainingIgnoreCase(searchTerm.get(), pageable)
-                    .map(this::mapToResponse);
-        } else {
-            
-            return movieRepository.findAll(pageable)
-                    .map(this::mapToResponse);
+        Specification<Movie> spec = Specification.allOf();
+        if (genre.isPresent()) {
+            spec = spec.and(MovieSpecification.hasGenre(genre.get()));
         }
+        if (searchTerm.isPresent()) {
+            spec = spec.and(MovieSpecification.hasTitle(searchTerm.get()));
+        }
+        return movieRepository.findAll(spec, pageable).map(this::mapToResponse);
     }
 
     // Metodo para Actualizar una Pelicula
