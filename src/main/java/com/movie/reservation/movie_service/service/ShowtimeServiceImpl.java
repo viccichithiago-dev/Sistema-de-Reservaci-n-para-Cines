@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,18 +70,12 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
         
-        List<Showtime> showtimes = showtimeRepository.findByStartTimeBetween(startOfDay, endOfDay);
-        
+        List<Showtime> showtimes;
         if (genre.isPresent()) {
-            // Filtrar por género de película si está presente
-            showtimes = showtimes.stream()
-            .filter(st -> st.getMovie().getGenre() == genre.get())
-            .toList();
+            showtimes = showtimeRepository.findByStartTimeBetweenAndMovieGenre(startOfDay, endOfDay, genre.get(),Sort.by("startTime"));
+        } else {
+            showtimes = showtimeRepository.findByStartTimeBetween(startOfDay, endOfDay, Sort.by("startTime"));
         }
-        
-        // Ordenar por hora de inicio
-        showtimes.sort((s1, s2) -> s1.getStartTime().compareTo(s2.getStartTime()));
-        
         return showtimes.stream()
                 .map(this::mapToResponse)
                 .toList();
