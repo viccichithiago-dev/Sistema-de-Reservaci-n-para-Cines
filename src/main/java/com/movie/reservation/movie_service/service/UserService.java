@@ -4,10 +4,10 @@ import com.movie.reservation.movie_service.dto.UserDTO;
 import com.movie.reservation.movie_service.dto.UserRegistrationRequest;
 import com.movie.reservation.movie_service.model.Role;
 import com.movie.reservation.movie_service.dto.AuthResult;
-
+import com.movie.reservation.movie_service.dto.UserResponse;
 public interface UserService {
-    UserDTO registerUser(UserRegistrationRequest user);
+    UserResponse registerUser(UserRegistrationRequest user);
     AuthResult authenticateUser(LoginRequest loginRequest);
-    UserDTO getUserById(Long id);
+    UserResponse getUserById(Long id);
     void updateUserRole(Long id, Role role);
 }

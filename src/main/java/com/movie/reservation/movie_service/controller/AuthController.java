@@ -5,12 +5,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
 import com.movie.reservation.movie_service.dto.AuthResponse;
-import com.movie.reservation.movie_service.dto.LoginRequest;
-import com.movie.reservation.movie_service.dto.UserDTO;
-import com.movie.reservation.movie_service.dto.UserRegistrationRequest;
-import com.movie.reservation.movie_service.service.UserService;
 import com.movie.reservation.movie_service.dto.AuthResult;
+import com.movie.reservation.movie_service.dto.LoginRequest;
+import com.movie.reservation.movie_service.dto.UserRegistrationRequest;
+import com.movie.reservation.movie_service.dto.UserResponse;
+import com.movie.reservation.movie_service.service.UserService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 @RestController
@@ -21,7 +23,7 @@ public class AuthController {
     // Endpoint de registro del usuario
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody UserRegistrationRequest request){
-        UserDTO user = userService.registerUser(request);
+        UserResponse user = userService.registerUser(request);
         AuthResult auth = userService.authenticateUser(new LoginRequest(user.email(), request.password()));
         AuthResponse response = new AuthResponse(
             auth.token(),

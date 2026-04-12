@@ -3,17 +3,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.movie.reservation.movie_service.dto.AuthResult;
 import com.movie.reservation.movie_service.dto.LoginRequest;
-import com.movie.reservation.movie_service.dto.UserDTO;
 import com.movie.reservation.movie_service.dto.UserRegistrationRequest;
-import com.movie.reservation.movie_service.exception.ResourceNotFoundException;
+import com.movie.reservation.movie_service.dto.UserResponse;
 import com.movie.reservation.movie_service.exception.DuplicateResourceException;
-import com.movie.reservation.movie_service.model.Role;
 import com.movie.reservation.movie_service.exception.InvalidCredentialsException;
+import com.movie.reservation.movie_service.exception.ResourceNotFoundException;
+import com.movie.reservation.movie_service.model.Role;
 import com.movie.reservation.movie_service.model.User;
 import com.movie.reservation.movie_service.repository.UserRepository;
 import com.movie.reservation.movie_service.security.JwtUtil;
-import com.movie.reservation.movie_service.dto.AuthResult;
+
 import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
@@ -22,18 +23,17 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     // Metodo privado
-    private UserDTO toResponse(User user) {
-    return new UserDTO(
-        user.getId(),
-        user.getEmail(),
-        user.getPassword(),
-        user.getRole()
-    );
+    private UserResponse toResponse(User user) {
+        return new UserResponse(
+            user.getId(),
+            user.getEmail(),
+            user.getRole()
+        );
     }
     // Metodo para registrar un usuario
     @Override
     @Transactional
-    public UserDTO registerUser(UserRegistrationRequest request){
+    public UserResponse registerUser(UserRegistrationRequest request){
         // Validaciones
         if(userRepository.existsByEmail(request.email())){
             throw new DuplicateResourceException("El Email ya esta registrado: " + request.email());
@@ -67,7 +67,7 @@ public class UserServiceImpl implements UserService {
 
     // Metodo para obtener el usuario por el ID
     @Override
-    public UserDTO getUserById(Long id){
+    public UserResponse getUserById(Long id){
         User user = userRepository.findById(id)
                     .orElseThrow(()-> new ResourceNotFoundException("Usuario no encontrado con el ID: "+ id));
         return toResponse(user);
