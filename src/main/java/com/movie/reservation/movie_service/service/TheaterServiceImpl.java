@@ -1,18 +1,23 @@
 package com.movie.reservation.movie_service.service;
-import com.movie.reservation.movie_service.dto.TheaterRequest;
-import com.movie.reservation.movie_service.dto.TheaterResponse;
-import com.movie.reservation.movie_service.dto.SeatResponse;
-import com.movie.reservation.movie_service.model.Theater;
-import com.movie.reservation.movie_service.model.Seat;
-import com.movie.reservation.movie_service.repository.TheaterRepository;
-import com.movie.reservation.movie_service.repository.SeatRepository;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import java.util.Optional;
-import java.util.List;
+
+import com.movie.reservation.movie_service.dto.SeatResponse;
+import com.movie.reservation.movie_service.dto.TheaterRequest;
+import com.movie.reservation.movie_service.dto.TheaterResponse;
+import com.movie.reservation.movie_service.exception.TheaterAlreadyExistsException;
+import com.movie.reservation.movie_service.exception.TheaterNotFoundException;
+import com.movie.reservation.movie_service.model.Seat;
+import com.movie.reservation.movie_service.model.Theater;
+import com.movie.reservation.movie_service.repository.SeatRepository;
+import com.movie.reservation.movie_service.repository.TheaterRepository;
+
+import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class TheaterServiceImpl implements TheaterService{
@@ -37,7 +42,7 @@ public class TheaterServiceImpl implements TheaterService{
     @Override
     public TheaterResponse getTheaterById(Long id){
         Theater theater = theaterRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Teatro no encontrado con ID: " + id));
+                .orElseThrow(() -> new TheaterNotFoundException(id));
                 return mapToResponse(theater);
     }   
     // Metodo para obtener todos los teatros
@@ -66,7 +71,7 @@ public class TheaterServiceImpl implements TheaterService{
         }
         }
         if(exists){
-            throw new RuntimeException("Ya existe un teatro registrado con ese nombre y ubicacion!!.");
+            throw new TheaterAlreadyExistsException(name);
         }
     }
     private void validateDuplicateTheater(String name, String location){
@@ -77,7 +82,7 @@ public class TheaterServiceImpl implements TheaterService{
     @Transactional
     public TheaterResponse updateTheater(Long id, TheaterRequest request){
         Theater theater = theaterRepository.findById(id)
-                .orElseThrow(()-> new RuntimeException("Teatro no encontrado con ID: " + id));
+                .orElseThrow(() -> new TheaterNotFoundException(id));
         validateDuplicateTheater(request.name(), request.location(),id);
         theater.setName(request.name());
         theater.setLocation(request.location());
@@ -89,7 +94,7 @@ public class TheaterServiceImpl implements TheaterService{
     @Transactional
     public void deleteTheater(Long id){
         if(!theaterRepository.existsById(id)){
-            throw new RuntimeException("Teatro no encontrado con ID: "+id);
+            throw new TheaterNotFoundException(id);
         }
         theaterRepository.deleteById(id);
     }
@@ -97,8 +102,8 @@ public class TheaterServiceImpl implements TheaterService{
     @Override
     public List<SeatResponse> getTheaterSeats(Long theaterId){
         Theater theater = theaterRepository.findById(theaterId)
-    
-        .orElseThrow(()-> new RuntimeException("Teatro no encotnrado con ID: "+theaterId));
+                .orElseThrow(() -> new TheaterNotFoundException(theaterId));
+        
         return seatRepository.findByTheater(theater)
                     .stream()
                     .map(this::seatToResponse)
