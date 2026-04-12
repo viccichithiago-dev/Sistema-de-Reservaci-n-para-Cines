@@ -2,7 +2,6 @@ package com.movie.reservation.movie_service.service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,8 +10,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.movie.reservation.movie_service.dto.ReservationRequest;
 import com.movie.reservation.movie_service.dto.ReservationResponse;
-import com.movie.reservation.movie_service.dto.SeatResponse;
-import com.movie.reservation.movie_service.dto.ShowtimeResponse;
+import com.movie.reservation.movie_service.exception.InvalidCancellationException;
+import com.movie.reservation.movie_service.exception.ReservationAlreadyCancelledException;
+import com.movie.reservation.movie_service.exception.ReservationNotFoundException;
+import com.movie.reservation.movie_service.exception.SeatsAlreadyBookedException;
+import com.movie.reservation.movie_service.exception.SeatsNotBelongingToShowtimeException;
+import com.movie.reservation.movie_service.exception.ShowtimeNotFoundException;
+import com.movie.reservation.movie_service.exception.UserNotFoundException;
 import com.movie.reservation.movie_service.model.Reservation;
 import com.movie.reservation.movie_service.model.ReservationStatus;
 import com.movie.reservation.movie_service.model.Showtime;
@@ -31,6 +35,7 @@ public class ReservationServiceImpl implements ReservationService{
     private final ShowtimeRepository showtimeRepository;
     private final ShowtimeSeatRepository showtimeSeatRepository;
     private final UserRepository userRepository;
+    private final ReservationMapper reservationMapper;
 
     // Metodo para crear una reserva
     @Override
@@ -38,16 +43,16 @@ public class ReservationServiceImpl implements ReservationService{
     public ReservationResponse createReservation(Long userId, ReservationRequest request){
         // Validaciones
         User user = userRepository.findById(userId)
-                .orElseThrow(()->new RuntimeException("Usuario no encontrado con ID: " + userId));
+                .orElseThrow(() -> new UserNotFoundException(userId));
         Showtime showtime = showtimeRepository.findById(request.showtimeId())
-                .orElseThrow(()-> new RuntimeException("Showtime no encontrado con el ID: "+request.showtimeId()));      
+                .orElseThrow(() -> new ShowtimeNotFoundException(request.showtimeId()));      
         List<Long> seatIds = request.seatIds();
         List<ShowtimeSeat> seats = showtimeSeatRepository.findByShowtimeIdAndSeatIdIn(request.showtimeId(), seatIds);
         if(seats.size() != seatIds.size()){
-            throw new RuntimeException("Uno o mas asientos no pertenecen al showtime especificado");
+            throw new SeatsNotBelongingToShowtimeException(request.showtimeId());
         }
         if(seats.stream().anyMatch(ShowtimeSeat::isBooked)){
-            throw new RuntimeException("Uno o mas asientos ya estan reservados!");
+            throw new SeatsAlreadyBookedException(request.showtimeId());
         }
         // Calcular el total para la reserva de los asientos!
         double pricePerSeat= 10.0;
@@ -69,39 +74,39 @@ public class ReservationServiceImpl implements ReservationService{
         });
         showtimeSeatRepository.saveAll(seats);
         // Mapeo de la reservacion
-        return buildReservationResponse(savedReservation);
+        return reservationMapper.toResponse(savedReservation);
     }
     // Metodo para obtener las reservaciones de un usuario
     @Override
     public Page<ReservationResponse> getUserReservations(Long userId,Pageable pageable){
         // Validamos la existencia del usuario
         if(!userRepository.existsById(userId)){
-            throw new RuntimeException("Usuario no encontrado con el ID: " + userId);
+            throw new UserNotFoundException(userId);
         }
         Page<Reservation> reservations = reservationRepository.findByUserId(userId, pageable);
-        return reservations.map(this::buildReservationResponse);
+        return reservations.map(reservationMapper::toResponse);
     }
     // Metodo para obtener una reservacion por el ID
     @Override
     public ReservationResponse getReservationById(Long id){
         Reservation reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada con el ID: " + id));
-        return buildReservationResponse(reservation);
+                .orElseThrow(() -> new ReservationNotFoundException(id));
+        return reservationMapper.toResponse(reservation);
     }
     // Metodo para cancelar una reservacion!
     @Override
     @Transactional
     public ReservationResponse cancelReservation(Long reservationId){
         Reservation reservation = reservationRepository.findById(reservationId)
-                .orElseThrow(() -> new RuntimeException("Reserva no encontrada con el ID: "+reservationId));
+                .orElseThrow(() -> new ReservationNotFoundException(reservationId));
         // Validaciones antes de cancelar la reserva
         // Verificamos que no cancele una reserva el mismo dia
         if(reservation.getReservationDate().isBefore(LocalDateTime.now())){
-            throw new RuntimeException("Solo se pueden cancelar reservas futuras");
+            throw new InvalidCancellationException(reservationId);
         }
         // Verificamos que no pueda cancelar una reserva ya antes cancelada o ya que este completa
         if(reservation.getStatus()== ReservationStatus.CANCELLED || reservation.getStatus() == ReservationStatus.COMPLETED){
-            throw new RuntimeException("La reserva ya no puede ser cancelada, debido a que ya fue cancelada o esta completa!");
+            throw new ReservationAlreadyCancelledException(reservationId);
         }
         // Liberamos los asientos
         List<ShowtimeSeat> reservedSeats = showtimeSeatRepository.findByReservationId(reservationId);
@@ -115,32 +120,6 @@ public class ReservationServiceImpl implements ReservationService{
         reservation.setStatus(ReservationStatus.CANCELLED);
         Reservation updateReservation = reservationRepository.save(reservation);
         
-        return buildReservationResponse(updateReservation);
-    }
-    // Metodo privado para mapear una reserva a un response
-    private ReservationResponse buildReservationResponse(Reservation reservation){
-        ShowtimeSeat firstSeat = reservation.getReservedSeats().iterator().next();
-        Showtime showtime = firstSeat.getShowtime();
-        return new ReservationResponse(
-                reservation.getId(),
-                reservation.getUser().getId(),
-                new ShowtimeResponse(
-                        showtime.getId(),
-                        showtime.getMovie().getId(),
-                        showtime.getTheater().getId(),
-                        showtime.getStartTime(),
-                        showtime.getEndTime()
-                ),
-                reservation.getReservedSeats().stream()
-                        .map(seat -> new SeatResponse(
-                                seat.getId(),
-                                seat.getSeat().getSeatNumber(),
-                                seat.getSeat().getRow()
-                        ))
-                        .collect(Collectors.toList()),
-                reservation.getReservationDate(),
-                reservation.getTotalAmount(),
-                reservation.getStatus()
-        );
+        return reservationMapper.toResponse(updateReservation);
     }
 }
