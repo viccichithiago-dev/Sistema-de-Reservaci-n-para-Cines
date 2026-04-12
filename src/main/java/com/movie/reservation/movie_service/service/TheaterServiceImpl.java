@@ -16,6 +16,8 @@ import com.movie.reservation.movie_service.model.Seat;
 import com.movie.reservation.movie_service.model.Theater;
 import com.movie.reservation.movie_service.repository.SeatRepository;
 import com.movie.reservation.movie_service.repository.TheaterRepository;
+import com.movie.reservation.movie_service.model.spec.TheaterSpecification;
+import org.springframework.data.jpa.domain.Specification;
 
 import lombok.RequiredArgsConstructor;
 @Service
@@ -49,15 +51,9 @@ public class TheaterServiceImpl implements TheaterService{
     @Override
     public Page<TheaterResponse> getAllTheaters(Pageable pageable,Optional<String> nameFIlter, Optional<String> locationFilter){
         // Validacion
-        if(nameFIlter.isPresent() && locationFilter.isPresent()){
-            return theaterRepository.findByNameContainingIgnoreCaseAndLocationContainingIgnoreCase(nameFIlter.get(), locationFilter.get(), pageable).map(this::mapToResponse);
-        } else if(nameFIlter.isPresent()){
-            return theaterRepository.findByNameContainingIgnoreCase(nameFIlter.get(),pageable).map(this::mapToResponse);
-        } else if (locationFilter.isPresent()){
-            return theaterRepository.findByLocationContainingIgnoreCase(locationFilter.get(), pageable).map(this::mapToResponse);
-        } else{
-            return theaterRepository.findAll(pageable).map(this::mapToResponse);
-        }
+        Specification<Theater> spec = TheaterSpecification.buildFilters(nameFIlter, locationFilter);
+        return theaterRepository.findAll(spec, pageable)
+            .map(this::mapToResponse);
     }
     // M
     // Metodos privados para ayudar del Servicio 
