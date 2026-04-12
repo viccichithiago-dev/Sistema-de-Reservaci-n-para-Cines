@@ -1,13 +1,14 @@
 package com.movie.reservation.movie_service.service;
-import com.movie.reservation.movie_service.dto.SeatResponse;
-import com.movie.reservation.movie_service.model.Seat;
-import com.movie.reservation.movie_service.model.Theater;
-import com.movie.reservation.movie_service.repository.SeatRepository;
-import lombok.RequiredArgsConstructor;
-
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+
+import com.movie.reservation.movie_service.dto.SeatResponse;
+import com.movie.reservation.movie_service.exception.SeatNotFoundException;
+import com.movie.reservation.movie_service.model.Seat;
+import com.movie.reservation.movie_service.repository.SeatRepository;
+
+import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class SeatServiceImpl implements SeatService{
@@ -17,7 +18,7 @@ public class SeatServiceImpl implements SeatService{
     @Override
     public SeatResponse getSeatById(Long id){
         Seat seat = seatRepository.findById(id)
-                .orElseThrow(()-> new RuntimeException("Asiento no encontrado con el ID : " + id));
+                .orElseThrow(() -> new SeatNotFoundException(id));
         return seatToResponse(seat);
     }
     // Lista de los asientos del teatro
