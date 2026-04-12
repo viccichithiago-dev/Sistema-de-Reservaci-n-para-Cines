@@ -9,6 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.movie.reservation.movie_service.dto.ShowtimeRequest;
 import com.movie.reservation.movie_service.dto.ShowtimeResponse;
+import com.movie.reservation.movie_service.exception.InvalidShowtimeTimeException;
+import com.movie.reservation.movie_service.exception.MovieNotFoundException;
+import com.movie.reservation.movie_service.exception.ShowtimeNotFoundException;
+import com.movie.reservation.movie_service.exception.ShowtimeOverlapException;
+import com.movie.reservation.movie_service.exception.TheaterNotFoundException;
 import com.movie.reservation.movie_service.model.Genre;
 import com.movie.reservation.movie_service.model.Movie;
 import com.movie.reservation.movie_service.model.Showtime;
@@ -29,16 +34,16 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     public ShowtimeResponse createShowtime(ShowtimeRequest request) {
         // Validar que la película y el teatro existan
         Movie movie = movieRepository.findById(request.movieId())
-                .orElseThrow(() -> new RuntimeException("Película no encontrada con ID: " + request.movieId()));
+                .orElseThrow(() -> new MovieNotFoundException(request.movieId()));
         Theater theater = theaterRepository.findById(request.theaterId())
-                .orElseThrow(() -> new RuntimeException("Teatro no encontrado con ID: " + request.theaterId()));
+                .orElseThrow(() -> new TheaterNotFoundException(request.theaterId()));
         
         // Validar que no haya solapamiento de horarios en el mismo teatro
         validateNoOverlap(theater, request.startTime(), request.endTime(), null);
         
         // Validar que startTime sea antes de endTime
         if (!request.startTime().isBefore(request.endTime())) {
-            throw new RuntimeException("La hora de inicio debe ser anterior a la hora de fin");
+            throw new InvalidShowtimeTimeException(theater.getId());
         }
         
         // Crear y guardar showtime
@@ -55,7 +60,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Override
     public ShowtimeResponse getShowtimeById(Long id) {
         Showtime showtime = showtimeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Showtime no encontrado con ID: " + id));
+                .orElseThrow(() -> new ShowtimeNotFoundException(id));
         return mapToResponse(showtime);
     }
     @Override
@@ -64,16 +69,13 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
         
-        List<Showtime> showtimes;
+        List<Showtime> showtimes = showtimeRepository.findByStartTimeBetween(startOfDay, endOfDay);
+        
         if (genre.isPresent()) {
-            // Filtrar por fecha y género de película
-            showtimes = showtimeRepository.findByStartTimeBetween(startOfDay, endOfDay);
+            // Filtrar por género de película si está presente
             showtimes = showtimes.stream()
             .filter(st -> st.getMovie().getGenre() == genre.get())
             .toList();
-        } else {
-            // Filtrar solo por fecha
-            showtimes = showtimeRepository.findByStartTimeBetween(startOfDay, endOfDay);
         }
         
         // Ordenar por hora de inicio
@@ -87,20 +89,20 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Transactional
     public ShowtimeResponse updateShowtime(Long id, ShowtimeRequest request) {
         Showtime showtime = showtimeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Showtime no encontrado con ID: " + id));
+                .orElseThrow(() -> new ShowtimeNotFoundException(id));
         
         // Validar que película y teatro existan (si se están actualizando)
         Movie movie = movieRepository.findById(request.movieId())
-                .orElseThrow(() -> new RuntimeException("Película no encontrada con ID: " + request.movieId()));
+                .orElseThrow(() -> new MovieNotFoundException(request.movieId()));
         Theater theater = theaterRepository.findById(request.theaterId())
-                .orElseThrow(() -> new RuntimeException("Teatro no encontrado con ID: " + request.theaterId()));
+                .orElseThrow(() -> new TheaterNotFoundException(request.theaterId()));
         
         // Validar que no haya solapamiento con otros showtimes en el mismo teatro (excluyendo el actual)
         validateNoOverlap(theater, request.startTime(), request.endTime(), id);
         
         // Validar que startTime sea antes de endTime
         if (!request.startTime().isBefore(request.endTime())) {
-            throw new RuntimeException("La hora de inicio debe ser anterior a la hora de fin");
+            throw new InvalidShowtimeTimeException(id);
         }
         
         // Actualizar showtime
@@ -116,7 +118,7 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     @Transactional
     public void deleteShowtime(Long id) {
         if (!showtimeRepository.existsById(id)) {
-            throw new RuntimeException("Showtime no encontrado con ID: " + id);
+            throw new ShowtimeNotFoundException(id);
         }
         showtimeRepository.deleteById(id);
     }
@@ -124,21 +126,9 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     private void validateNoOverlap(Theater theater, LocalDateTime newStart, LocalDateTime newEnd, Long excludeId) {
         // Para una implementación completa, necesitaríamos un método en el repositorio que encuentre showtimes solapados
         // Como aproximación, obtenemos todos los showtimes del teatro y verificamos solapamiento en memoria
-        List<Showtime> theaterShowtimes = showtimeRepository.findByTheater(theater);
-        
-        for (Showtime existing : theaterShowtimes) {
-            // Excluir el showtime actual si estamos actualizando
-            if (excludeId != null && existing.getId().equals(excludeId)) {
-                continue;
-            }
-            
-            // Verificar solapamiento: [newStart, newEnd) y [existingStart, existingEnd)
-            boolean overlaps = newStart.isBefore(existing.getEndTime()) && 
-                              newEnd.isAfter(existing.getStartTime());
-            
-            if (overlaps) {
-                throw new RuntimeException("El horario se solapa con otro showtime en el mismo teatro");
-            }
+        List<Showtime> overlappingShowtimes = showtimeRepository.findOverlappingShowtimes(theater, newStart, newEnd, excludeId);
+        if (!overlappingShowtimes.isEmpty()) {
+            throw new ShowtimeOverlapException(overlappingShowtimes.get(0).getId());
         }
     }
     
