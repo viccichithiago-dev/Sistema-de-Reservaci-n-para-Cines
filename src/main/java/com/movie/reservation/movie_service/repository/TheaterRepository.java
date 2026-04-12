@@ -5,13 +5,14 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 import com.movie.reservation.movie_service.model.Theater;
 
 
 @Repository
-public interface TheaterRepository extends JpaRepository<Theater, Long> {
+public interface TheaterRepository extends JpaRepository<Theater, Long>, JpaSpecificationExecutor<Theater> {
     
     // Búsquedas por nombre (texto)
     Page<Theater> findByNameContainingIgnoreCase(String name,Pageable pageable);
