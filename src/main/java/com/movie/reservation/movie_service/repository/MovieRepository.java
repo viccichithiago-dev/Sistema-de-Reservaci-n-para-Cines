@@ -41,7 +41,9 @@ public interface MovieRepository extends JpaRepository<Movie, Long>, JpaSpecific
 
     // Metodos nuevos para consultas JQPL para obtener peliculas por popularidad
     @Query("""
-    SELECT m.id, m.title, m.genre, COUNT(r.id), SUM(r.totalAmount), COUNT(ss.id)
+    SELECT NEW com.movie.reservation.movie_service.dto.MoviePopularityResponse(
+        m.id, m.title, m.genre, COUNT(r.id), SUM(r.totalAmount), COUNT(ss.id)
+    )
     FROM Movie m
     JOIN Showtime sh ON sh.movie = m
     JOIN ShowtimeSeat ss ON ss.showtime = sh
@@ -52,6 +54,8 @@ public interface MovieRepository extends JpaRepository<Movie, Long>, JpaSpecific
     GROUP BY m.id, m.title, m.genre
     ORDER BY COUNT(r.id) DESC
     """)
-    List<MoviePopularityResponse> findMoviesByPopularity(@Param("startDate") LocalDateTime startDate,@Param("endDate")LocalDateTime endDate);
-
+    List<MoviePopularityResponse> findMoviesByPopularity(
+        @Param("startDate") LocalDateTime startDate,
+        @Param("endDate") LocalDateTime endDate
+    );
 }
