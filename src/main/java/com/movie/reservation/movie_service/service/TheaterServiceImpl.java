@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +15,9 @@ import com.movie.reservation.movie_service.exception.TheaterAlreadyExistsExcepti
 import com.movie.reservation.movie_service.exception.TheaterNotFoundException;
 import com.movie.reservation.movie_service.model.Seat;
 import com.movie.reservation.movie_service.model.Theater;
+import com.movie.reservation.movie_service.model.spec.TheaterSpecification;
 import com.movie.reservation.movie_service.repository.SeatRepository;
 import com.movie.reservation.movie_service.repository.TheaterRepository;
-import com.movie.reservation.movie_service.model.spec.TheaterSpecification;
-import org.springframework.data.jpa.domain.Specification;
 
 import lombok.RequiredArgsConstructor;
 @Service
@@ -49,9 +49,9 @@ public class TheaterServiceImpl implements TheaterService{
     }   
     // Metodo para obtener todos los teatros
     @Override
-    public Page<TheaterResponse> getAllTheaters(Pageable pageable,Optional<String> nameFIlter, Optional<String> locationFilter){
+    public Page<TheaterResponse> getAllTheaters(Pageable pageable,Optional<String> nameFilter, Optional<String> locationFilter){
         // Validacion
-        Specification<Theater> spec = TheaterSpecification.buildFilters(nameFIlter, locationFilter);
+        Specification<Theater> spec = TheaterSpecification.buildFilters(nameFilter, locationFilter);
         return theaterRepository.findAll(spec, pageable)
             .map(this::mapToResponse);
     }
