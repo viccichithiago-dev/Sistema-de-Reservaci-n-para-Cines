@@ -2,27 +2,15 @@ package com.movie.reservation.movie_service.dto;
 
 import java.time.LocalDateTime;
 
+import jakarta.validation.constraints.NotNull;
+
 public record ShowtimeRequest(
+    @NotNull(message = "El movieId es requerido")
     Long movieId,
+    @NotNull(message = "El theaterId es requerido")
     Long theaterId,
+    @NotNull(message = "El startTime es requerido")
     LocalDateTime startTime,
+    @NotNull(message = "El endTime es requerido")
     LocalDateTime endTime
-) {
-    public ShowtimeRequest {
-        if (movieId == null) {
-            throw new IllegalArgumentException("movieId is required");
-        }
-        if (theaterId == null) {
-            throw new IllegalArgumentException("theaterId is required");
-        }
-        if (startTime == null) {
-            throw new IllegalArgumentException("startTime is required");
-        }
-        if (endTime == null) {
-            throw new IllegalArgumentException("endTime is required");
-        }
-        if (!startTime.isBefore(endTime)) {
-            throw new IllegalArgumentException("startTime must be before endTime");
-        }
-    }
-}
+) {}
