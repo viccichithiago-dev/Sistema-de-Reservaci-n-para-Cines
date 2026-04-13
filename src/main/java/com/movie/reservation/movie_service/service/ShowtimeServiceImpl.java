@@ -4,10 +4,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.movie.reservation.movie_service.config.SeatPriceConfig;
+import com.movie.reservation.movie_service.dto.AvailableSeatResponse;
 import com.movie.reservation.movie_service.dto.ShowtimeRequest;
 import com.movie.reservation.movie_service.dto.ShowtimeResponse;
 import com.movie.reservation.movie_service.exception.InvalidShowtimeTimeException;
@@ -18,9 +21,11 @@ import com.movie.reservation.movie_service.exception.TheaterNotFoundException;
 import com.movie.reservation.movie_service.model.Genre;
 import com.movie.reservation.movie_service.model.Movie;
 import com.movie.reservation.movie_service.model.Showtime;
+import com.movie.reservation.movie_service.model.ShowtimeSeat;
 import com.movie.reservation.movie_service.model.Theater;
 import com.movie.reservation.movie_service.repository.MovieRepository;
 import com.movie.reservation.movie_service.repository.ShowtimeRepository;
+import com.movie.reservation.movie_service.repository.ShowtimeSeatRepository;
 import com.movie.reservation.movie_service.repository.TheaterRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -30,6 +35,8 @@ public class ShowtimeServiceImpl implements ShowtimeService {
     private final ShowtimeRepository showtimeRepository;
     private final MovieRepository movieRepository;
     private final TheaterRepository theaterRepository;
+    private final ShowtimeSeatRepository showtimeSeatRepository;
+    private final SeatPriceConfig seatPriceConfig;
     @Override
     @Transactional
     public ShowtimeResponse createShowtime(ShowtimeRequest request) {
@@ -65,20 +72,19 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         return mapToResponse(showtime);
     }
     @Override
-    public List<ShowtimeResponse> getAvailableShowtimes(LocalDate date, Optional<Genre> genre) {
-        // Definir rango de fechas para el día especificado (00:00:00 a 23:59:59)
-        LocalDateTime startOfDay = date.atStartOfDay();
-        LocalDateTime endOfDay = date.atTime(23, 59, 59, 999999999);
-        
-        List<Showtime> showtimes;
-        if (genre.isPresent()) {
-            showtimes = showtimeRepository.findByStartTimeBetweenAndMovieGenre(startOfDay, endOfDay, genre.get(),Sort.by("startTime"));
-        } else {
-            showtimes = showtimeRepository.findByStartTimeBetween(startOfDay, endOfDay, Sort.by("startTime"));
+    public Page<ShowtimeResponse> getAvailableShowtimes(Optional<LocalDate> date, Optional<Genre> genre, Pageable pageable) {
+        LocalDate targetDate = date.orElse(LocalDate.now());
+        LocalDateTime startOfDay = targetDate.atStartOfDay();
+        LocalDateTime endOfDay = targetDate.atTime(23,59,59,9999999);
+        if(genre.isPresent()){
+            return showtimeRepository
+                .findByStartTimeBetweenAndMovieGenre(startOfDay, endOfDay, genre.get(), pageable)
+                .map(this::mapToResponse);
+        } else{
+            return showtimeRepository
+                .findByStartTimeBetween(startOfDay, endOfDay, pageable)
+                .map(this::mapToResponse);
         }
-        return showtimes.stream()
-                .map(this::mapToResponse)
-                .toList();
     }
     @Override
     @Transactional
@@ -127,6 +133,24 @@ public class ShowtimeServiceImpl implements ShowtimeService {
         }
     }
     
+    @Override
+    @Transactional(readOnly = true)
+    public List<AvailableSeatResponse> getAvailableSeats(Long showtimeId) {
+        Showtime showtime = showtimeRepository.findById(showtimeId)
+                .orElseThrow(() -> new ShowtimeNotFoundException(showtimeId));
+        List<ShowtimeSeat> allSeats = showtimeSeatRepository.findByShowtime(showtime); 
+        return allSeats.stream()
+                .map(ss -> new AvailableSeatResponse(
+                        ss.getId(),
+                        ss.getSeat().getId(),
+                        ss.getSeat().getSeatNumber(),
+                        ss.getSeat().getRow(),
+                        ss.isBooked(),
+                        seatPriceConfig.getStandardPrice()
+                ))
+                .toList();
+    
+    } 
     private ShowtimeResponse mapToResponse(Showtime showtime) {
         return new ShowtimeResponse(
                 showtime.getId(),
