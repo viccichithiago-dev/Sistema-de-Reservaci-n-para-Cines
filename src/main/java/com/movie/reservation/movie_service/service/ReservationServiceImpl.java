@@ -1,13 +1,16 @@
 package com.movie.reservation.movie_service.service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.movie.reservation.movie_service.config.SeatPriceConfig;
 import com.movie.reservation.movie_service.dto.ReservationRequest;
 import com.movie.reservation.movie_service.dto.ReservationResponse;
 import com.movie.reservation.movie_service.exception.InvalidCancellationException;
@@ -36,6 +39,7 @@ public class ReservationServiceImpl implements ReservationService{
     private final ShowtimeSeatRepository showtimeSeatRepository;
     private final UserRepository userRepository;
     private final ReservationMapper reservationMapper;
+    private final SeatPriceConfig seatPriceConfig;
 
     // Metodo para crear una reserva
     @Override
@@ -47,6 +51,11 @@ public class ReservationServiceImpl implements ReservationService{
         Showtime showtime = showtimeRepository.findById(request.showtimeId())
                 .orElseThrow(() -> new ShowtimeNotFoundException(request.showtimeId()));      
         List<Long> seatIds = request.seatIds();
+        // Validamos que no haya ID's de asientos duplicados
+        Set<Long> uniqueSeatIds = new HashSet<>(seatIds);
+        if(uniqueSeatIds.size() != seatIds.size()){
+            throw new IllegalArgumentException("Duplicate seat IDs are not allowed.");
+        }
         List<ShowtimeSeat> seats = showtimeSeatRepository.findByShowtimeIdAndSeatIdIn(request.showtimeId(), seatIds);
         if(seats.size() != seatIds.size()){
             throw new SeatsNotBelongingToShowtimeException(request.showtimeId());
@@ -55,8 +64,7 @@ public class ReservationServiceImpl implements ReservationService{
             throw new SeatsAlreadyBookedException(request.showtimeId());
         }
         // Calcular el total para la reserva de los asientos!
-        double pricePerSeat= 10.0;
-        double totalAmount = pricePerSeat * seatIds.size();
+        double totalAmount = seatPriceConfig.calculateTotalPrice(seatIds.size());
         // Creacion de la reserva
         Reservation reservation = new Reservation(
             user,
