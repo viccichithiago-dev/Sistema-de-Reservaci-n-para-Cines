@@ -73,6 +73,13 @@ public class UserServiceImpl implements UserService {
         return toResponse(user);
     }
 
+    @Override
+    public UserResponse getUserByEmail(String email){
+        User user = userRepository.findByEmail(email)
+                    .orElseThrow(()-> new ResourceNotFoundException("Usuario no encontrado con email: "+ email));
+        return toResponse(user);
+    }
+
     // Metodo para actualizar el ROLE de un Usuario
     @Override
     @Transactional
