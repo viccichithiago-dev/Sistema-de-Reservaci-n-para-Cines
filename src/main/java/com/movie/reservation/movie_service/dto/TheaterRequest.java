@@ -1,6 +1,8 @@
 package com.movie.reservation.movie_service.dto;
 
+import jakarta.validation.constraints.NotBlank;
+
 public record TheaterRequest(
-    String name,
-    String location
+    @NotBlank String name,
+    @NotBlank String location
 ) {}
