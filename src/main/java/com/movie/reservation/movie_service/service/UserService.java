@@ -9,5 +9,6 @@ public interface UserService {
     UserResponse registerUser(UserRegistrationRequest user);
     AuthResult authenticateUser(LoginRequest loginRequest);
     UserResponse getUserById(Long id);
+    UserResponse getUserByEmail(String email);
     void updateUserRole(Long id, Role role);
 }
