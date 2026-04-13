@@ -54,4 +54,7 @@ public interface ShowtimeRepository extends JpaRepository<Showtime, Long> {
         Sort sort
     );
     List<Showtime> findByStartTimeBetween(LocalDateTime start, LocalDateTime end, Sort sort);
+    Page<Showtime> findByStartTimeBetweenAndMovieGenre(
+    LocalDateTime start, LocalDateTime end, Genre genre, Pageable pageable
+    ); 
 }
