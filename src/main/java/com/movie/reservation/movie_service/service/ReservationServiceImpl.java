@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.movie.reservation.movie_service.config.SeatPriceConfig;
 import com.movie.reservation.movie_service.dto.ReservationRequest;
 import com.movie.reservation.movie_service.dto.ReservationResponse;
+import com.movie.reservation.movie_service.exception.DuplicateResourceException;
 import com.movie.reservation.movie_service.exception.InvalidCancellationException;
 import com.movie.reservation.movie_service.exception.ReservationAlreadyCancelledException;
 import com.movie.reservation.movie_service.exception.ReservationNotFoundException;
@@ -54,7 +55,7 @@ public class ReservationServiceImpl implements ReservationService{
         // Validamos que no haya ID's de asientos duplicados
         Set<Long> uniqueSeatIds = new HashSet<>(seatIds);
         if(uniqueSeatIds.size() != seatIds.size()){
-            throw new IllegalArgumentException("Duplicate seat IDs are not allowed.");
+            throw new DuplicateResourceException("Duplicate seat IDs are not allowed.");
         }
         List<ShowtimeSeat> seats = showtimeSeatRepository.findByShowtimeIdAndSeatIdIn(request.showtimeId(), seatIds);
         if(seats.size() != seatIds.size()){
