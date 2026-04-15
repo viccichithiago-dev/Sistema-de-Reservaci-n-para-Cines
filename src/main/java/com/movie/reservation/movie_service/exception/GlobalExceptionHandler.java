@@ -42,4 +42,13 @@ public class GlobalExceptionHandler {
         );
         return ResponseEntity.status(500).body(error);
     }
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex) {
+        ErrorResponse error = new ErrorResponse(
+            ex.getStatusCode(),
+            ex.getMessage(),
+            LocalDateTime.now()
+        );
+        return ResponseEntity.status(ex.getStatusCode()).body(error);
+    }
 }
