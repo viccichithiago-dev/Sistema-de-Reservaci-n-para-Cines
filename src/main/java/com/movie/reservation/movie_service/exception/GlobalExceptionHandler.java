@@ -1,11 +1,13 @@
 package com.movie.reservation.movie_service.exception;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 @ControllerAdvice
 public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
@@ -75,6 +77,24 @@ public class GlobalExceptionHandler {
             message,
             java.time.LocalDateTime.now()
         );
+        return ResponseEntity.status(400).body(error);
+    }
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        String message = String.format("El valor '%s' no es válido para el parámetro '%s'.", 
+                                    ex.getValue(), ex.getName());
+        
+        // Si el error es específicamente por el Enum Genre, damos una ayuda extra
+        if (ex.getRequiredType() != null && ex.getRequiredType().isEnum()) {
+            message += " Los géneros válidos son: " + Arrays.toString(ex.getRequiredType().getEnumConstants());
+        }
+
+        ErrorResponse error = new ErrorResponse(
+            400,
+            message,
+            LocalDateTime.now()
+        );
+        
         return ResponseEntity.status(400).body(error);
     }
 }
