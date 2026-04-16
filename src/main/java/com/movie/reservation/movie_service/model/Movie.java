@@ -28,11 +28,11 @@ public class Movie {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @NotBlank
-    @Size(max=20)
+    @Size(max=100)
     @Column(nullable=false,length=100)
     private String title;
     @NotBlank
-    @Size(max=20)
+    @Size(max=100)
     @Column()
     private String description;
  
