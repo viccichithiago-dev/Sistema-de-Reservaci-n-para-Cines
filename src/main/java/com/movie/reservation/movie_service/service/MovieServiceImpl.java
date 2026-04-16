@@ -61,7 +61,18 @@ public class MovieServiceImpl implements MovieService {
         if (searchTerm.isPresent()) {
             spec = spec.and(MovieSpecification.hasTitle(searchTerm.get()));
         }
-        return movieRepository.findAll(spec, pageable).map(this::mapToResponse);
+        Page<Movie> moviesPage = movieRepository.findAll(spec, pageable);
+        if (moviesPage.isEmpty()) {
+            String message = "No se encontraron peliculas";
+            if (genre.isPresent()) {
+                message += " para el género: " + genre.get();
+            }
+            if (searchTerm.isPresent()) {
+                message += " con el término de búsqueda (TITULO): '" + searchTerm.get() + "'";
+            }
+            throw new ResourceNotFoundException(message);
+        }
+        return moviesPage.map(this::mapToResponse);
     }
 
     // Metodo para Actualizar una Pelicula
