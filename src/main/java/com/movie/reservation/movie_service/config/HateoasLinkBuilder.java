@@ -35,3 +35,4 @@ public class HateoasLinkBuilder<T> {
         return model;
     }
 }
+
