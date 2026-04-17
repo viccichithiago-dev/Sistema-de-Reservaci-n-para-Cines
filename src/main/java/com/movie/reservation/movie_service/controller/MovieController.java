@@ -4,9 +4,12 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.hateoas.EntityModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.movie.reservation.movie_service.config.HateoasLinkBuilder;
+import com.movie.reservation.movie_service.config.RoleHelper;
 import com.movie.reservation.movie_service.dto.MovieRequest;
 import com.movie.reservation.movie_service.dto.MovieResponse;
 import com.movie.reservation.movie_service.model.Genre;
@@ -32,20 +37,30 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "Movie Management", description = "Operaciones para la gestión de películas, incluyendo creación, actualización, eliminación y consulta de películas.")
 public class MovieController {
     private final MovieService movieService;
+    private final RoleHelper roleHelper;
+    private final HateoasLinkBuilder<MovieResponse> hateoasLinkBuilder;
+
     // Endpoint para crear una pelicula
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Crear una nueva película", description = "Crea una nueva película con la información proporcionada")
-    public ResponseEntity<MovieResponse> createMovie(@Valid @RequestBody MovieRequest request){
+    public ResponseEntity<EntityModel<MovieResponse>> createMovie(@Valid @RequestBody MovieRequest request){
         MovieResponse response = movieService.createMovie(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        EntityModel<MovieResponse> model = hateoasLinkBuilder.buildLinks(
+            response, "/api/movies", response.id(), true);
+        return ResponseEntity.status(HttpStatus.CREATED).body(model);
     }
     // Endpoint para obtener una pelicula por ID
     @GetMapping("/{id}")
     @Operation(summary = "Obtener una película por ID", description = "Obtiene los detalles de una película específica por su ID")
-    public ResponseEntity<MovieResponse> getMovieById(@PathVariable Long id){
+    public ResponseEntity<EntityModel<MovieResponse>> getMovieById(
+        @PathVariable Long id,
+        @AuthenticationPrincipal UserDetails userDetails){
         MovieResponse response = movieService.getMovieById(id);
-        return ResponseEntity.ok(response);
+        boolean isAdmin = roleHelper.isAdmin(userDetails);
+        EntityModel<MovieResponse> model = hateoasLinkBuilder.buildLinks(
+            response, "/api/movies", id, isAdmin);
+        return ResponseEntity.ok(model);
     }
     // Endpoint para obtener todas las peliculas con paginacion y filtros
     @GetMapping
@@ -67,9 +82,11 @@ public class MovieController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Actualizar una película existente", description = "Actualiza la información de una película existente utilizando su ID")
-    public ResponseEntity<MovieResponse> updateMovie(@PathVariable Long id, @Valid @RequestBody MovieRequest request){
+    public ResponseEntity<EntityModel<MovieResponse>> updateMovie(@PathVariable Long id, @Valid @RequestBody MovieRequest request){
         MovieResponse response = movieService.updateMovie(id, request);
-        return ResponseEntity.ok(response);
+        EntityModel<MovieResponse> entity = hateoasLinkBuilder.buildLinks(
+        response, "/api/movies", id, true);
+        return ResponseEntity.ok(entity);
     }
     // Endpoint para eliminar una pelicula
     @DeleteMapping("/{id}")
