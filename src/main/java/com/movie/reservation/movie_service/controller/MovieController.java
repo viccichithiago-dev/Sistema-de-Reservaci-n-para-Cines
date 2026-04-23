@@ -65,18 +65,25 @@ public class MovieController {
     // Endpoint para obtener todas las peliculas con paginacion y filtros
     @GetMapping
     @Operation(summary = "Obtener todas las películas", description = "Obtiene una lista paginada de todas las películas, con opciones de filtrado por género y término de búsqueda en el título.")
-    public ResponseEntity<Page<MovieResponse>> getAllMovies(
+    public ResponseEntity<Page<EntityModel<MovieResponse>>> getAllMovies(
         @PageableDefault(size = 10) Pageable pageable,
         @RequestParam(required = false) Genre genre,
-        @RequestParam(required = false) String searchTerm
+        @RequestParam(required = false) String searchTerm,
+        @AuthenticationPrincipal UserDetails userDetails
     ){
-        Page<MovieResponse> response = movieService.getAllMovies(
+        Page<MovieResponse> movies = movieService.getAllMovies(
             pageable,
             Optional.ofNullable(genre),
             Optional.ofNullable(searchTerm)
         );
-        return ResponseEntity.ok(response);
 
+        boolean isAdmin = roleHelper.isAdmin(userDetails);
+        
+        Page<EntityModel<MovieResponse>> response = movies.map(movie -> 
+            hateoasLinkBuilder.buildLinks(movie, "/api/movies", movie.id(), isAdmin)
+        );
+        
+        return ResponseEntity.ok(response);
     }
     // Endpoint para actualizar una pelicula
     @PutMapping("/{id}")
