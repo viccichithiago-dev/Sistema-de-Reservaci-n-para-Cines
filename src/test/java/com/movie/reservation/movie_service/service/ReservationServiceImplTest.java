@@ -1,20 +1,19 @@
 package com.movie.reservation.movie_service.service;
-/**
- * import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
-import static org.mockito.ArgumentMatchers.any;
- */
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -123,7 +122,62 @@ class ReservationServiceImplTest {
         @Test
         @DisplayName("Debe crear una reserva exitosamente cuando todos los datos son válidos")
         void shouldCreateReservationWhenAllValid(){
-            
+            // Patron AAA
+            // Arrange Configuracion del Comportamiento de los Mocks
+            // Act Ejecución del Método a Probar
+            // Assert Verificación de Resultados
+            // Arrange (Configuracion)
+            given(userRepository.findById(29L)).willReturn(java.util.Optional.of(userTest));
+            given(showtimeRepository.findById(1L)).willReturn(Optional.of(showtimeTest));
+            given(showtimeSeatRepository.findByShowtimeIdAndSeatIdIn(1L, List.of(1L, 2L)))
+            .willReturn(List.of(showtimeSeatTest));
+            given(seatPriceConfig.calculateTotalPrice(2)).willReturn(25.0);
+            given(reservationRepository.save(any(Reservation.class)))
+            .willAnswer(invocation -> {
+                Reservation res = invocation.getArgument(0);
+                res.setId(1L); // Simula el ID generado por la DB
+                return res;
+            });
+            given(reservationMapper.toResponse(any(Reservation.class)))
+            .willReturn(reservationResponseTest);
+            // Act (Ejecucion del metodo a probar)
+            ReservationResponse response = reservationService.createReservation(29L, validRequest);            
+            // Assert (Verificacion de Resultados)
+            // Verificacion que no sea nulo!
+            assertThat(response).isNotNull();
+            // Verificacion de que el ID de la reserva sea el esperado
+            assertThat(response.id()).isEqualTo(1L);
+            // Verificacion de que el ID del usuario sea el esperado
+            assertThat(response.userId()).isEqualTo(29L);
+            // Verificacion del monto total calculado
+            assertThat(response.totalAmount()).isEqualTo(BigDecimal.valueOf(25.0));
+            // Verificacion del estado de la reserva
+            assertThat(response.status()).isEqualTo(ReservationStatus.PENDING);
+
+            // Verificacion de respuestas
+            // Verificamos que la llamada a la base de Datos sea una1 sola vez para cada entidad involucrada
+            then(userRepository).should().findById(29L);
+            // Verificamos que tambien se haya llamado una sola vez
+            then(showtimeRepository).should().findById(1L);
+            // Verificacion que se hayan encontrados los asientos correctos
+            then(showtimeSeatRepository).should().findByShowtimeIdAndSeatIdIn(1L, List.of(1L, 2L));
+            // Verificacion del precio total calculado
+            then(seatPriceConfig).should().calculateTotalPrice(2);
+            // Verificacion de que se haya guardado la reserva
+            then(reservationRepository).should().save(argThat(reservation -> 
+                reservation.getUser().equals(userTest) &&
+                reservation.getTotalAmount().equals(BigDecimal.valueOf(25.0)) &&
+                reservation.getStatus() == ReservationStatus.PENDING
+            ));
+            // Verificacion que los asientos estan reservados
+            then(showtimeSeatRepository).should().saveAll(argThat(
+            (Iterable<ShowtimeSeat> seats) -> {
+                List<ShowtimeSeat> list = (List<ShowtimeSeat>) seats;
+                return list.stream().allMatch(seat -> seat.isBooked());
+            }
+            ));
+            // Verificar que se mappeó la respuesta
+            then(reservationMapper).should().toResponse(any(Reservation.class));
         }
     }
 }
