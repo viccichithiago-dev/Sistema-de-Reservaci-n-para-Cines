@@ -36,7 +36,8 @@
 6. [Motivación](#motivación)
 7. [Manual de Instalación y Deployment](#manual-de-instalación-y-deployment)
 8. [Ejemplos de Uso](#ejemplos-de-uso)
-9. [Roadmap](#roadmap)
+9. [Testing](#testing)
+10. [Roadmap](#roadmap)
 
 ---
 
@@ -101,6 +102,8 @@ Movie Service es una **API REST** para un sistema completo de reservas de cine. 
 | PostgreSQL Driver | Conexión a base de datos |
 | H2 Database | Base de datos en memoria para tests |
 | Spring Docker Compose | Orquestación de contenedores |
+| Spring Boot Starter Test | Testing con JUnit 5, Mockito, AssertJ |
+| Spring Security Test | Testing de seguridad |
 
 ### Infraestructura
 - **Base de Datos**: PostgreSQL 15
@@ -488,6 +491,112 @@ Authorization: Bearer <token_admin>
   "averagePerReservation": 30.00
 }
 ```
+
+---
+
+## Testing
+
+El proyecto utiliza un conjunto completo de herramientas de testing para garantizar la calidad del código y el funcionamiento correcto de las funcionalidades.
+
+### Frameworks y Herramientas
+
+| Herramienta | Propósito |
+|-------------|-----------|
+| **JUnit 5** | Framework principal de testing |
+| **Mockito** | Mocking de dependencias |
+| **AssertJ** | Assertions fluidos |
+| **Spring Boot Test** | Testing de integración |
+| **H2 Database** | Base de datos en memoria para tests |
+
+### Estructura de Tests
+
+Los tests se encuentran organizados en el directorio `src/test/java`:
+
+```
+src/test/java/com/movie/reservation/movie_service/
+├── MovieServiceApplicationTests.java          # Tests de carga de contexto
+└── service/
+    └── ReservationServiceImplTest.java        # Tests unitarios del servicio de reservas
+```
+
+### Tipos de Tests
+
+#### Tests de Contexto (Spring Boot Test)
+```java
+@SpringBootTest
+class MovieServiceApplicationTests {
+    @Test
+    void contextLoads() {
+    }
+}
+```
+Verifica que el contexto de Spring se cargue correctamente.
+
+#### Tests Unitarios con Mockito
+El proyecto incluye tests unitarios exhaustivos para el `ReservationServiceImpl` utilizando el patrón AAA (Arrange-Act-Assert):
+
+```java
+@ExtendWith(MockitoExtension.class)
+@DisplayName("Tests para ReservationService")
+class ReservationServiceImplTest {
+    // Mocks de los repositorios y servicios
+    @Mock
+    private UserRepository userRepository;
+    
+    @Mock
+    private ShowtimeRepository showtimeRepository;
+    
+    @InjectMocks
+    private ReservationServiceImpl reservationService;
+    
+    // Tests...
+}
+```
+
+### Tests Implementados
+
+#### ReservationServiceImplTest
+Tests para el servicio de reservas que cubren:
+
+| Escenario | Descripción |
+|-----------|-------------|
+| **Happy Path** | Creación exitosa de reserva con datos válidos |
+| **Usuario no encontrado** | Excepción cuando el usuario no existe |
+| **Showtime no encontrado** | Excepción cuando la función no existe |
+| **Asientos duplicados** | Validación de asientos duplicados en la solicitud |
+| **Asientos no pertenecen al showtime** | Validación de que los asientos pertenezcan a la función |
+| **Asientos ya reservados** | Validación de disponibilidad de asientos |
+
+### Ejecutar Tests
+
+#### Ejecutar todos los tests
+```bash
+./mvnw test
+```
+
+#### Ejecutar una clase de test específica
+```bash
+./mvnw test -Dtest=MovieServiceApplicationTests
+```
+
+#### Ejecutar un método de test específico
+```bash
+./mvnw test -Dtest=MovieServiceApplicationTests#contextLoads
+```
+
+#### Ejecutar tests de un paquete específico
+```bash
+./mvnw test -Dtest=**/service/*
+```
+
+### Cobertura de Tests
+
+El proyecto cuenta con tests unitarios que verifican:
+- ✓ Creación de reservas
+- ✓ Validación de datos de entrada
+- ✓ Manejo de excepciones
+- ✓ Interacciones con repositorios
+- ✓ Cálculo de precios
 
 ---
 
