@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,6 +24,10 @@ import com.movie.reservation.movie_service.dto.ReservationRequest;
 import com.movie.reservation.movie_service.dto.ReservationResponse;
 import com.movie.reservation.movie_service.dto.SeatResponse;
 import com.movie.reservation.movie_service.dto.ShowtimeResponse;
+import com.movie.reservation.movie_service.exception.DuplicateResourceException;
+import com.movie.reservation.movie_service.exception.SeatNotFoundException;
+import com.movie.reservation.movie_service.exception.ShowtimeNotFoundException;
+import com.movie.reservation.movie_service.exception.UserNotFoundException;
 import com.movie.reservation.movie_service.model.Genre;
 import com.movie.reservation.movie_service.model.Movie;
 import com.movie.reservation.movie_service.model.Reservation;
@@ -178,6 +183,81 @@ class ReservationServiceImplTest {
             ));
             // Verificar que se mappeó la respuesta
             then(reservationMapper).should().toResponse(any(Reservation.class));
+        }
+        // Test de Errores
+        @Test
+        @DisplayName("Debe lanzar una excepción cuando el usuario no existe")
+        void shouldThrowExceptionWhenUserNotFound(){
+            // Arrange
+            given(userRepository.findById(29L)).willReturn(Optional.empty());
+            // Act & Assert
+            assertThatThrownBy(() -> reservationService.createReservation(29L, validRequest))
+            .isInstanceOf(UserNotFoundException.class);
+            // Verificacion que se haya intentado buscar el usuario
+            then(userRepository).should().findById(29L);
+            // Nunca deberian ser llamados los repositorios de showtime ni de reserva si el usuario no existe
+            then(showtimeRepository).shouldHaveNoInteractions();
+            then(reservationRepository).shouldHaveNoInteractions();
+        }
+        @Test
+        @DisplayName("Debe lanzar una excepción cuando el showtime no existe")
+        void shouldThrowExceptionWhenShowtimeNotFound(){
+            // Arrange
+            given(userRepository.findById(29L)).willReturn(Optional.of(userTest));
+            given(showtimeRepository.findById(1L)).willReturn(Optional.empty());
+            // Act & Assert
+            assertThatThrownBy(() -> reservationService.createReservation(29L, validRequest))
+            .isInstanceOf(ShowtimeNotFoundException.class);
+            // Verificacion que se haya intentado buscar el showtime
+            then(showtimeRepository).should().findById(1L);
+            // Nunca deberian ser llamados los repositorios de reserva si el showtime no existe
+            then(reservationRepository).shouldHaveNoInteractions();
+        }
+        @Test
+        @DisplayName("Debe lanzar una excepcion si hay asientos duplicaddos")
+        void shouldThrowExceptionWhenDuplicateSeats(){
+            // Arrange
+            ReservationRequest requestWithDuplicateSeats = new ReservationRequest(1L, List.of(1L, 1L));
+            given(userRepository.findById(29L)).willReturn(Optional.of(userTest));
+            given(showtimeRepository.findById(1L)).willReturn(Optional.of(showtimeTest));
+            // Act & Assert
+            assertThatThrownBy(() -> reservationService.createReservation(29L, requestWithDuplicateSeats))
+            .isInstanceOf(DuplicateResourceException.class)
+            .hasMessageContaining("Asientos duplicados en la solicitud");
+            // Verificacion que nunca se haya llamado al repositorio de asientos ni de reserva debido a la validacion previa de asientos duplicados
+            then(showtimeSeatRepository).shouldHaveNoInteractions();
+            then(reservationRepository).shouldHaveNoInteractions();
+        }
+        @Test
+        @DisplayName("Asientos solicitados no pertenecen a este showtime")
+        void shouldThrowExceptionWhenSeatsDontBelongToShowtime(){
+            // Arrange
+            ShowtimeSeat bookedSeat = new ShowtimeSeat(showtimeTest, new Seat(2L,1,2,theaterTest), true);
+            given(userRepository.findById(29L)).willReturn(Optional.of(userTest));
+            given(showtimeRepository.findById(1L)).willReturn(Optional.of(showtimeTest));
+            given(showtimeSeatRepository.findByShowtimeIdAndSeatIdIn(1L, List.of(1L, 2L)))
+            .willReturn(List.of(bookedSeat));
+            // Act & Assert
+            assertThatThrownBy(() -> reservationService.createReservation(29L, validRequest))
+            .isInstanceOf(SeatNotFoundException.class);
+            // Verify que no se haya llamado al repositorio de reserva debido a que los asientos no son válidos para ese showtime
+            then(reservationRepository).shouldHaveNoInteractions();
+        }
+        @Test
+        @DisplayName("Debe lanzar una excepcion si hay asientos ya reservados") 
+        void shouldThrowExceptionWhenSeatsAlreadyBooked(){
+            // Arrange
+            ShowtimeSeat bookedSeat = new ShowtimeSeat(showtimeTest, new Seat(1L,1,1,theaterTest), true);
+            given(userRepository.findById(29L)).willReturn(Optional.of(userTest));
+            given(showtimeRepository.findById(1L)).willReturn(Optional.of(showtimeTest));
+            given(showtimeSeatRepository.findByShowtimeIdAndSeatIdIn(1L, List.of(1L, 2L)))
+            .willReturn(List.of(bookedSeat));
+            // Act & Assert
+            assertThatThrownBy(() -> reservationService.createReservation(29L, validRequest))
+            .isInstanceOf(SeatNotFoundException.class)
+            .hasMessageContaining("Asientos ya reservados");
+            // Verify que no se haya llamado al repositorio de reserva debido a que los asientos ya están reservados
+            then(reservationRepository).shouldHaveNoInteractions();
         }
     }
 }
